@@ -35,13 +35,9 @@ export default Ember.Controller.extend(NeedsDeploymentMixin, {
   }),
   disableCredentialsNext: Ember.computed.not('enableCredentialsNext'),
 
-  hasUpstreamConsumerUuid: Ember.computed('upstreamConsumerUuid', function() {
-    return Ember.isPresent(this.get('upstreamConsumerUuid'));
-  }),
+  hasUpstreamConsumerUuid: Ember.computed.notEmpty('upstreamConsumerUuid'),
 
-  hasOrganizationUpstreamConsumerUUID: Ember.computed('organizationUpstreamConsumerUUID', function() {
-    return Ember.isPresent(this.get('organizationUpstreamConsumerUUID'));
-  }),
+  hasOrganizationUpstreamConsumerUUID: Ember.computed.notEmpty('organizationUpstreamConsumerUUID'),
 
   backRouteNameonCredentials: Ember.computed('isRhev', 'isOpenStack', 'isOpenShift', 'isCloudForms', function() {
     if (this.get('isCloudForms')) {

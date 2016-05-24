@@ -29,7 +29,7 @@ export default Ember.Route.extend(DeploymentRouteMixin, UsesOseDefaults, {
     this.loadCloudFormsDefaults(controller, model);
     this.loadDefaultDomainName(controller);
 
-    // copied from setupController in app/routes/subscriptions/credentials.js
+    // moved from setupController in app/routes/subscriptions/credentials.js
     // to fix bug of Review Tab being disabled on refresh and needing to click
     // on subscriptions to enable it
     // check if org has upstream UUID using Katello V2 API

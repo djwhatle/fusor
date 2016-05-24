@@ -2,15 +2,7 @@
   <div class="row">
     <div class='col-md-9'>
       <div class='alert alert-info rhci-alert'>
-          This deployment already has a subscription management application <strong>{{upstreamConsumerName}}</strong> assigned to it.
-      </div>
-    </div>
-  </div>
-{{else if hasOrganizationUpstreamConsumerUUID}}
-  <div class="row">
-    <div class='col-md-9'>
-      <div class='alert alert-info rhci-alert'>
-          There is already a manifest uploaded for your organization: <strong> {{organizationUpstreamConsumerName}}</strong>
+        This deployment is already assigned to the <strong>{{upstreamConsumerName}}</strong> subscription management application. Continue with the included subscriptions or {{#link-to 'subscriptions.select-subscriptions'}}add subscriptions{{/link-to}}.
       </div>
     </div>
   </div>

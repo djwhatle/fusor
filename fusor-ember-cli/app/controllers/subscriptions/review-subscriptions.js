@@ -16,4 +16,8 @@ export default Ember.Controller.extend(NeedsDeploymentMixin, {
   sortProps: ['contract_number'],
   sortedModel: Ember.computed.sort('model', 'sortProps')
 
+  upstreamConsumerUuid: Ember.computed.alias("deploymentController.model.upstream_consumer_uuid"),
+  upstreamConsumerName: Ember.computed.alias("deploymentController.model.upstream_consumer_name"),
+  hasUpstreamConsumerUuid: Ember.computed.notEmpty('upstreamConsumerUuid')
+
 });
