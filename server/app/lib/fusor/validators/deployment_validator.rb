@@ -176,7 +176,7 @@ module Fusor
 
       def validate_nfs_server(deployment, address)
         cmd = "showmount #{address}"
-        status, output = Utils::Fusor::CommandUtils.run_command(cmd)
+        status, output = Utils::Fusor::CommandUtils.run_command(cmd, deployment)
 
         if status != 0
           message = _("Could not connect to address '%s'. " \
@@ -190,7 +190,7 @@ module Fusor
 
       def validate_nfs_mount(deployment, address, path, uid, gid)
         cmd = "sudo safe-mount.sh '#{deployment.id}' '#{address}' '#{path}'"
-        status, output = Utils::Fusor::CommandUtils.run_command(cmd)
+        status, output = Utils::Fusor::CommandUtils.run_command(cmd, deployment)
 
         if status != 0
           add_warning(deployment, _("Could not mount the NFS share '%s' in order to inspect it. " \

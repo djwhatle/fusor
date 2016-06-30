@@ -48,7 +48,7 @@ module Actions
                 "--storage_domain_name #{deployment.rhev_storage_name} "\
                 "--vm_template_name #{input[:template_name]}"
 
-            status, output = run_command(cmd)
+            status, output = run_command(cmd, deployment)
             if status != 0
               fail _("Unable to import template: Status: %{status}. Output: %{output}") % { :status => status,
                                                                                             :output => output }
@@ -58,9 +58,9 @@ module Actions
 
           private
 
-          def run_command(cmd)
+          def run_command(cmd, deployment)
             ::Fusor.log.info "Running: #{cmd}"
-            status, output = Utils::Fusor::CommandUtils.run_command(cmd)
+            status, output = Utils::Fusor::CommandUtils.run_command(cmd, deployment)
             ::Fusor.log.debug "Status: #{status}, output: #{output}"
             return status, output
           end

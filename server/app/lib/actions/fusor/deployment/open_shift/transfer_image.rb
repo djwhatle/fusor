@@ -42,7 +42,7 @@ module Actions
                         "cd -"
 
 
-              status, output = run_command(tar_cmd)
+              status, output = run_command(tar_cmd, deployment)
               if status != 0
                 fail _("Unable to create image tar file: Status: %{status}. Output: %{output}") % { :status => status,
                                                                                                     :output => output }
@@ -89,9 +89,9 @@ module Actions
             end
           end
 
-          def run_command(cmd)
+          def run_command(cmd, deployment)
             ::Fusor.log.info "Running: #{cmd}"
-            status, output = Utils::Fusor::CommandUtils.run_command(cmd)
+            status, output = Utils::Fusor::CommandUtils.run_command(cmd, deployment)
             ::Fusor.log.debug "Status: #{status}, output: #{output}"
             return status, output
           end

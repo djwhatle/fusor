@@ -145,7 +145,7 @@ module Fusor
       end
 
       cmd = "sudo safe-mount.sh '#{deployment_id}' '#{address}' '#{path}' '#{type}'"
-      status, _output = Utils::Fusor::CommandUtils.run_command(cmd)
+      status, _output = Utils::Fusor::CommandUtils.run_command(cmd, nil)
 
       raise 'Unable to mount NFS share at specified mount point' unless status == 0
 

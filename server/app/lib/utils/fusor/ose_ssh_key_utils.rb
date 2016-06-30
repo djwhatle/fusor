@@ -19,8 +19,8 @@ module Utils
         if File.directory?(@key_from_path)
           ::Fusor.log.debug "====== ssh keys folder '#{@key_from_path}' already exists! skipping key generation"
         else
-          Utils::Fusor::CommandUtils.run_command("mkdir -p #{@key_from_path}")
-          Utils::Fusor::CommandUtils.run_command("ssh-keygen -f #{@key_from_path}/#{@key_base_name} -N '' -t #{@key_type}")
+          Utils::Fusor::CommandUtils.run_command("mkdir -p #{@key_from_path}", nil)
+          Utils::Fusor::CommandUtils.run_command("ssh-keygen -f #{@key_from_path}/#{@key_base_name} -N '' -t #{@key_type}", nil)
           ::Fusor.log.debug "====== ssh keys have been generated"
         end
       end

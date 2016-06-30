@@ -94,7 +94,7 @@ module Actions
                 "--api_pass #{api_password} "\
                 "--data_center #{data_center}"
 
-              status, output = Utils::Fusor::CommandUtils.run_command(cmd)
+              status, output = Utils::Fusor::CommandUtils.run_command(cmd, deployment)
               { status: status, output: output }
             end
           end
