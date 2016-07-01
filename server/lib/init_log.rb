@@ -14,10 +14,10 @@ module Fusor
 
   def self.log_change_deployment(deployment = nil)
     if deployment.nil?
-      log.attach(@default_log_file)
+      log.attach(@default_log_file, deployment)
     else
       FileUtils.mkdir_p(self.log_file_dir(deployment.label, deployment.id)) unless File.exist?(self.log_file_dir(deployment.label, deployment.id))
-      log.attach(self.log_file_path(deployment.label, deployment.id))
+      log.attach(self.log_file_path(deployment.label, deployment.id), deployment)
     end
   end
 

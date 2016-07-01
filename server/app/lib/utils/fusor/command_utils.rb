@@ -10,9 +10,6 @@
 # have received a copy of GPLv2 along with this software; if not, see
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 require 'open3'
-require 'yaml'
-require 'set'
-require 'pry'
 
 module Utils
   module Fusor
