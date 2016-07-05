@@ -79,9 +79,13 @@ module Actions
           puppet_environment = content_view_puppet_environment.puppet_environment
 
           if puppet_class_settings = hostgroup_settings[:puppet_classes]
-            puppet_classes = Puppetclass.where(:name => puppet_class_settings.map { |c| c[:name] }).
+            puppet_class_names = puppet_class_settings.map { |c| c[:name] }
+            puppet_classes = Puppetclass.where(:name => puppet_class_names).
                 joins(:environment_classes).
                 where("environment_classes.environment_id in (?)", puppet_environment.id).uniq
+            found_puppet_names = puppet_classes.map { |c| c.name }
+            missing_puppet_classes = puppet_class_names - found_puppet_names
+            fail _("Missing puppet classes: #{missing_puppet_classes}") unless missing_puppet_classes.empty?
             puppet_class_ids = puppet_classes.map(&:id)
           end
 
@@ -254,7 +258,8 @@ module Actions
               :parameters =>
               [
                 { :name => "storage_type", :value => deployment.rhev_storage_type },
-                { :name => "admin_password", :value => deployment.rhev_engine_admin_password }
+                { :name => "admin_password", :value => deployment.rhev_engine_admin_password },
+                { :name => "db_password", :value => deployment.rhev_engine_admin_password }
               ]
             }
           ]
@@ -302,6 +307,7 @@ module Actions
                 { :name => "engine_mac_address", :value => Utils::Fusor::MacAddresses.generate_mac_address },
                 { :name => "engine_fqdn", :value => "#{deployment.label.tr('_', '-')}-rhev-engine.#{hostgroup.domain.name}" },
                 { :name => "engine_admin_password", :value => deployment.rhev_engine_admin_password },
+                { :name => "engine_db_password", :value => deployment.rhev_engine_admin_password },
                 { :name => "engine_activation_key", :value => hostgroup.group_parameters.where(:name => 'kt_activation_keys').try(:first).try(:value) },
                 { :name => "export_name", :value => deployment.rhev_export_domain_name },
                 { :name => "export_address", :value => deployment.rhev_export_domain_address },

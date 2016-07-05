@@ -22,12 +22,12 @@
         :repository_set_id: "1952"
         :repository_set_name: "Red Hat Enterprise Linux 6 Server (Kickstart)"
         :basearch: "x86_64"
-        :releasever: "6.7"
+        :releasever: "6.8"
 
       - :product_name: "Red Hat Enterprise Linux Server"
         :product_id: "69"
-        :repository_set_id: "4185"
-        :repository_set_name: "Red Hat Satellite Tools 6.1 (for RHEL 6 Server) (RPMs)"
+        :repository_set_id: "4362"
+        :repository_set_name: "Red Hat Satellite Tools 6 Beta (for RHEL 6 Server) (RPMs)"
         :basearch: "x86_64"
 
       - :product_name: "Red Hat Enterprise Linux Server"
@@ -67,8 +67,8 @@
 
       - :product_name: "Red Hat Enterprise Linux Server"
         :product_id: "69"
-        :repository_set_id: "4188"
-        :repository_set_name: "Red Hat Satellite Tools 6.1 (for RHEL 7 Server) (RPMs)"
+        :repository_set_id: "4380"
+        :repository_set_name: "Red Hat Satellite Tools 6 Beta (for RHEL 7 Server) (RPMs)"
         :basearch: "x86_64"
 
       - :product_name: "Red Hat Enterprise Virtualization"
@@ -95,8 +95,8 @@
 
       - :product_name: "Red Hat Enterprise Linux Server"
         :product_id: "69"
-        :repository_set_id: "4188"
-        :repository_set_name: "Red Hat Satellite Tools 6.1 (for RHEL 7 Server) (RPMs)"
+        :repository_set_id: "4380"
+        :repository_set_name: "Red Hat Satellite Tools 6 Beta (for RHEL 7 Server) (RPMs)"
         :basearch: "x86_64"
 
       - :product_name: "Red Hat Enterprise Virtualization"
@@ -107,14 +107,10 @@
         :releasever: "7Server"
 
     :cloudforms:
-      #- :product_name: "Red Hat CloudForms"
-      #  :product_id: "167"
-      #  :repository_set_id: "4631"
-      #  :repository_set_name: "Red Hat CloudForms Management Engine 5.5 (Files)"
-      - :product_name: "Red Hat CloudForms Beta"
-        :product_id: "303"
-        :repository_set_id: "4635"
-        :repository_set_name: "Red Hat CloudForms Beta (Files)"
+      - :product_name: "Red Hat CloudForms"
+        :product_id: "167"
+        :repository_set_id: "5233"
+        :repository_set_name: "Red Hat CloudForms Management Engine 5.6 (Files)"
         :basearch: "x86_64"
         # Default behavior is to use the latest available image found
         # in the repository if either :rhos_image_file_name or :rhev_image_file_name
@@ -129,7 +125,8 @@
         :repository_set_name: "Red Hat Enterprise Linux 7 Server (Kickstart)"
         :basearch: "x86_64"
         :releasever: "7.2"
-        #Need Red Hat 7.2 Operating Sysetem setup including Media, architecture, and other associations.
+        # Need Red Hat 7.2 Operating Sysetem setup including Media,
+        # architecture, and other associations.
 
     :openshift:
       - :product_name: "Red Hat OpenShift Enterprise"
@@ -249,6 +246,24 @@
     - :name: "ovirt::self_hosted::packages"
     - :name: "ovirt::self_hosted::import_template"
     - :name: "ovirt::self_hosted::run_vm"
+
+  :docker_repos:
+    - :name: "hello-openshift"
+      :upstream_name: "openshift/hello-openshift"
+    - :name: "origin-docker-registry"
+      :upstream_name: "openshift/origin-docker-registry"
+    - :name: "origin-haproxy-router"
+      :upstream_name: "openshift/origin-haproxy-router"
+    - :name: "origin-deployer"
+      :upstream_name: "openshift/origin-deployer"
+    - :name: "origin-sti-builder"
+      :upstream_name: "openshift/origin-sti-builder"
+    - :name: "origin-pod"
+      :upstream_name: "openshift/origin-pod"
+    - :name: "origin-docker-builder"
+      :upstream_name: "openshift/origin-docker-builder"
+    - :name: "origin-keepalived-ipfailover"
+      :upstream_name: "openshift/origin-keepalived-ipfailover"
 
   :host_groups:
     :rhev:
@@ -379,3 +394,10 @@
           - :file: "/var/log/foreman-proxy/proxy.log"
           - :file: "/var/log/candlepin/candlepin.log"
           - :file: "/var/log/messages"
+
+  :puppet_module:
+    :ovirt:
+      :name: "ovirt"
+      :author: "jcannon"
+      :version: "1.0.0"
+      :filepath: "/usr/share/ovirt-puppet/pkg/jcannon-ovirt-1.0.0.tar.gz"
