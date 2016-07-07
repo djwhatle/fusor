@@ -11,10 +11,10 @@ class MultiLogger
   end
 
   # Creates and write to additional log file(s).
-  def attach(name)
+  def attach(name, deployment)
     @logdev ||= {}
     if !name.nil? and !@logdev.key? name
-      logger = Logger.new(name)
+      logger = DeploymentLogger.new(name, deployment)
       logger.level = log_level
       @logdev[name] = logger
     end

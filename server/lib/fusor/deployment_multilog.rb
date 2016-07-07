@@ -7,11 +7,10 @@ class DeploymentMultiLogger < MultiLogger
   def attach(name, deployment)
     @logdev ||= {}
     if !name.nil? and !@logdev.key? name
-      logger = DeploymentLogger.new(name, deployment)
+      logger = DeploymentLogger.new(deployment, name)
       logger.secret
       logger.level = log_level
       @logdev[name] = logger
     end
   end
 end
-

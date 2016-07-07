@@ -14,8 +14,6 @@ require 'open3'
 module Utils
   module Fusor
     class CommandUtils
-      @password_set = nil
-
       def self.run_command(cmd, log_on_success = false)
         # popen2e merges stdout and stderr, which we have put into
         # the the output variable
@@ -30,14 +28,17 @@ module Utils
         # which is useless in a debugging scenario.
         output = stdout_err.readlines
 
+        # binding.pry
+
         if status > 0
-          Rails.logger.error "Error running command: #{cmd}"
-          Rails.logger.error "Status code: #{status}"
-          Rails.logger.error "Command output: #{output}"
+          # Rails.logger.error "Error running command: #{cmd}"
+          ::Fusor.log.error "Error running command: #{cmd}"
+          ::Fusor.log.error "Status code: #{status}"
+          ::Fusor.log.error "Command output: #{output}"
         elsif log_on_success
-          Rails.logger.info "Command: #{cmd}"
-          Rails.logger.info "Status code: #{status}"
-          Rails.logger.info "Command output: #{output}"
+          ::Fusor.log.info "Command: #{cmd}"
+          ::Fusor.log.info "Status code: #{status}"
+          ::Fusor.log.info "Command output: #{output}"
         end
 
         # need to close these explicitly as per the docs
