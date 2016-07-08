@@ -1,5 +1,3 @@
-require "fusor/deployment_multilog"
-require "fusor/deployment_logger"
 require "fusor/multilog"
 
 module Fusor
@@ -11,17 +9,14 @@ module Fusor
 
   def self.log
     @log ||= MultiLogger.new(Rails.logger)
-    # @log ||= MultiLogger.new(Rails.logger)
   end
 
   def self.log_change_deployment(deployment = nil)
     if deployment.nil?
       log.attach(@default_log_file, deployment)
-      # log.attach(@default_log_file)
     else
       FileUtils.mkdir_p(self.log_file_dir(deployment.label, deployment.id)) unless File.exist?(self.log_file_dir(deployment.label, deployment.id))
       log.attach(self.log_file_path(deployment.label, deployment.id), deployment)
-      # log.attach(self.log_file_path(deployment.label, deployment.id))
     end
   end
 

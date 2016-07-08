@@ -16,7 +16,6 @@ require "uri"
 
 module Fusor
   class Api::V21::DeploymentsController < Api::V2::DeploymentsController
-
     before_filter :find_deployment, :only => [:destroy, :show, :update, :check_mount_point,
                                               :deploy, :redeploy, :validate, :log, :openshift_disk_space]
 

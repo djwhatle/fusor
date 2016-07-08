@@ -10,9 +10,11 @@
 # have received a copy of GPLv2 along with this software; if not, see
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 
+require 'fusor/password_scrubber'
+require 'fusor/deployment_logger'
+
 module Fusor
   class Api::V2::DeploymentsController < Api::V2::BaseController
-
     before_filter :find_deployment, :only => [:destroy, :show, :update, :deploy]
 
     def index
@@ -52,10 +54,10 @@ module Fusor
         raise ::ActiveRecord::RecordInvalid.new @deployment
       end
 
-      ::Fusor.log_change_deployment(@deployment)
+      Fusor.log_change_deployment(@deployment)
 
       # update the provider with the url
-      ::Fusor.log.debug "setting provider url to [#{@deployment.cdn_url}]"
+      Fusor.log.debug "setting provider url to [#{@deployment.cdn_url}]"
       provider = @deployment.organization.redhat_provider
       # just in case save it on the @deployment.org as well
       @deployment.organization.redhat_provider.repository_url = @deployment.cdn_url
@@ -114,6 +116,17 @@ module Fusor
       file = "#{path}/#{filename}"
       FileUtils.rmtree(file) if File.exist?(file)
       Fusor.log.info "====== '#{file}' ====== \n #{text}"
+
+      # Remove sensitive data from text being written
+      if SETTINGS[:fusor][:system][:logging][:log_passwords] == false
+        if !Fusor.log.respond_to?("password_set")
+          password_set = PasswordScrubber.extract_deployment_passwords(@deployment)
+          text = PasswordScrubber.replace_secret_strings(text, password_set)
+        else
+          text = PasswordScrubber.replace_secret_strings(text, Fusor.log.password_set)
+        end
+      end
+
       begin
         File.write(file, text)
       rescue

@@ -17,7 +17,7 @@ module Utils
   module CloudForms
     class ContainerProvider
       def self.add(cfme_ip, provider_params, deployment)
-        Rails.logger.info "Adding the RH-OSE provider at #{provider_params[:ip]} to the CloudForms VM at #{cfme_ip}"
+        Fusor.log.info "Adding the RH-OSE provider at #{provider_params[:ip]} to the CloudForms VM at #{cfme_ip}"
 
         data = {
           :action => "create",

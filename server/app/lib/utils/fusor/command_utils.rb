@@ -28,10 +28,8 @@ module Utils
         # which is useless in a debugging scenario.
         output = stdout_err.readlines
 
-        # binding.pry
-
         if status > 0
-          # Rails.logger.error "Error running command: #{cmd}"
+          # Fusor.log.error "Error running command: #{cmd}"
           ::Fusor.log.error "Error running command: #{cmd}"
           ::Fusor.log.error "Status code: #{status}"
           ::Fusor.log.error "Command output: #{output}"
