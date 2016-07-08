@@ -19,7 +19,7 @@ class DeploymentLogger < Logger
   end
 
   def add(severity, message = nil, progname = nil)
-    if @log_passwords == false and !@password_set.nil? and
+    if @log_passwords == false and !@password_set.nil?
       if !message.nil?
         message = PasswordScrubber.replace_secret_strings(message.clone, @password_set)
       end
