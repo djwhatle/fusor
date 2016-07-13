@@ -382,7 +382,6 @@
   :system:
     :logging:
       :level: ":debug"
-      :log_passwords: false
       :watch:
         :production:
           - :file: "/var/log/foreman/production.log"

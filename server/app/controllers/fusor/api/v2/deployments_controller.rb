@@ -10,7 +10,7 @@
 # have received a copy of GPLv2 along with this software; if not, see
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 
-require 'fusor/password_scrubber'
+require 'fusor/password_filter'
 require 'fusor/deployment_logger'
 
 module Fusor
@@ -115,18 +115,12 @@ module Fusor
     def write_file(path, filename, text)
       file = "#{path}/#{filename}"
       FileUtils.rmtree(file) if File.exist?(file)
-      Fusor.log.info "====== '#{file}' ====== \n #{text}"
 
       # Remove sensitive data from text being written
-      if SETTINGS[:fusor][:system][:logging][:log_passwords] == false
-        if !Fusor.log.respond_to?("password_set")
-          password_set = PasswordScrubber.extract_deployment_passwords(@deployment)
-          text = PasswordScrubber.replace_secret_strings(text, password_set)
-        else
-          text = PasswordScrubber.replace_secret_strings(text, Fusor.log.password_set)
-        end
-      end
+      PasswordFilter.extract_deployment_passwords(@deployment)
+      text = PasswordFilter.filter_passwords(text)
 
+      Fusor.log.info "====== '#{file}' ====== \n #{text}"
       begin
         File.write(file, text)
       rescue

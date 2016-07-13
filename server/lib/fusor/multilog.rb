@@ -10,8 +10,8 @@ class MultiLogger
     @watchlist ||= {}
   end
 
-  # Creates and write to additional log file(s).
-  def attach(name, deployment)
+  # Creates and writes to additional log file(s).
+  def attach(name, deployment = nil)
     @logdev ||= {}
     if !name.nil? and !@logdev.key? name
       logger = DeploymentLogger.new(name, deployment)
