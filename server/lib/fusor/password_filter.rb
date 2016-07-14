@@ -10,66 +10,60 @@ class PasswordFilter
   end
 
   def self.extract_deployment_passwords(deployment)
-    # only filter passwords in the production environment
-    if !Rails.env.production?
+    # act as passthrough (no filtering) if we're in dev/test AND show_passwords is enabled
+    if !Rails.env.production? and SETTINGS[:fusor][:system][:logging][:show_passwords]
       return nil
     end
-    extracted_passwords = Set.new
 
     main_deployment_passwords = [
-      "rhev_engine_admin_password",
-      "rhev_root_password",
-      "rhev_gluster_root_password",
-      "cfme_root_password",
-      "cfme_admin_password",
-      "cfme_db_password",
-      "openshift_user_password",
-      "openshift_root_password",
+      :rhev_engine_admin_password,
+      :rhev_root_password,
+      :rhev_gluster_root_password,
+      :cfme_root_password,
+      :cfme_admin_password,
+      :cfme_db_password,
+      :openshift_user_password,
+      :openshift_root_password,
     ]
     osp_deployment_passwords = [
-      "undercloud_admin_password",
-      "undercloud_ssh_password",
-      "overcloud_password",
+      :undercloud_admin_password,
+      :undercloud_ssh_password,
+      :overcloud_password,
     ]
 
+    # get passwords from main deployment
+    extracted_passwords = Set.new
     extracted_passwords += cautious_get_attrs(main_deployment_passwords, deployment)
-    binding.pry
+
+    # check if osp deployment exists, if so get passwords from it as well
     if deployment.respond_to? :openstack_deployment
       osp_deployment = deployment.send(:openstack_deployment)
       extracted_passwords += cautious_get_attrs(osp_deployment_passwords, osp_deployment)
-      binding.pry
     end
-    # main_deployment_passwords.each do |password_identifier|
-    #   if deployment.respond_to?(password_identifier)
-    #     password = deployment.send(password_identifier)
-    #     if !password.nil?
-    #       extracted_passwords.add(password)
-    #     end
-    #   end
-    # end
-    # keep track of the last good password set in @password_cache
+
     if extracted_passwords.size > 0
       @password_cache = extracted_passwords.clone
     end
     return extracted_passwords
   end
 
+  # cautiously gets a list of attributes from an object
   def self.cautious_get_attrs(attr_symbols, obj_to_search)
-    extracted_attrs = Set.new
+    attr_values = Set.new
     attr_symbols.each do |attr_symbol|
       if obj_to_search.respond_to?(attr_symbol)
         attr_value = obj_to_search.send(attr_symbol)
         if !attr_value.nil?
-          extracted_attrs.add(attr_value)
+          attr_values.add(attr_value)
         end
       end
     end
-    return extracted_attrs
+    return attr_values
   end
 
   def self.filter_passwords(text_to_filter, passwords = nil, replacement_text = "[SCRUBBED]")
-    # only filter passwords in the production environment
-    if !Rails.env.production?
+    # act as passthrough (no filtering) if we're in dev/test AND show_passwords is enabled
+    if !Rails.env.production? and SETTINGS[:fusor][:system][:logging][:show_passwords]
       return text_to_filter
     end
     # convert arrays etc. to strings so that gsub! is possible
