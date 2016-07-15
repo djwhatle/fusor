@@ -7,7 +7,16 @@ export default function() {
     return {};
   });
 
-  this.get('/fusor/api/v21/deployments');
+  this.get('/fusor/api/v21/deployments', function(db, request) {
+    return {deployments: db.deployments,
+            meta: {
+              total: 107,
+              total_pages: 5,
+              page: 1
+            }
+           };
+  });
+
   this.post('/fusor/api/v21/deployments');
   this.get('/fusor/api/v21/deployments/:id');
   this.put('/fusor/api/v21/deployments/:id');
@@ -54,6 +63,10 @@ export default function() {
   this.get('/katello/api/v2/organizations/:id', function(db, request) {
     var id = request.params.id;
     return db.katello_organizations.find(id);
+  });
+
+  this.get('/katello/api/v2/organizations/:id/subscriptions', function(db, request) {
+    return {"results": []};
   });
 
   this.get('/customer_portal/owners/:owner_key/consumers', function(db, request) {

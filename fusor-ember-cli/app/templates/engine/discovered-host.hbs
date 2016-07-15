@@ -16,7 +16,9 @@
               <div class='rhev-search-box'>
                   {{input type='text' class='form-control rhev-search-input'
                                placeholder=' Search ...'
-                               value=searchString disabled=isStarted}}
+                               data-qci='rhev-search-input'
+                               value=searchString
+                               disabled=isStarted}}
               </div>
             </div>
           </div>
@@ -25,8 +27,7 @@
 
             {{numSelected}} selected
 
-            <button class='btn btn-default btn-sm' {{action 'refreshDiscoveredHosts'}}
-                    disabled={{isStarted}}>
+            <button class='btn btn-default btn-sm' {{action 'refreshDiscoveredHosts'}} disabled={{isStarted}} data-qci='refresh_engines'>
                 Refresh Data
             </button>
           </div>
@@ -35,21 +36,9 @@
       </div>
 
       <table class="table table-bordered small fusor-table">
-        <thead>
-          <tr>
-            <th class='rhev-checkbox'> {{!input type="checkbox" checked=allChecked}}</th>
-            <th class='rhev-hostname'> Host Name </th>
-            <th class='rhev-mac-address'> MAC Address </th>
-            <th class='rhev-host-type text-center'> Host Type </th>
-            <th class='rhev-cpu text-center'> CPU </th>
-            <th class='rhev-memory text-center'> Memory </th>
-            <th class='rhev-disks text-center'> # Disks </th>
-            <th class='rhev-diskspace text-center'> Disk Space </th>
-            <th class='rhev-network'> Network </th>
-          </tr>
-        </thead>
+        {{partial 'thead-discovered-hosts'}}
         <tbody>
-          {{#each filteredHosts as |host|}}
+          {{#each sortedHosts as |host|}}
              {{tr-engine host=host
                          selectedRhevEngineHost=selectedRhevEngineHost
                          disabled=isStarted

@@ -10,31 +10,19 @@
 # have received a copy of GPLv2 along with this software; if not, see
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 
+require 'openssl'
 require 'json'
 require 'rest_client'
 
 module Utils
   module CloudForms
-    class CloudProvider
+    class AddProvider
       def self.add(cfme_ip, provider_params, deployment)
-        Fusor.log.info "Adding the RHOS provider at #{provider_params[:ip]} to the CloudForms VM at #{cfme_ip}"
+        Fusor.log.debug "Adding the provider at #{provider_params[:ip]} to the CloudForms VM at #{cfme_ip}"
 
         data = {
           :action => "create",
-          :resources => [
-            {
-              :name => provider_params[:name],
-              :type => "ManageIQ::Providers::Openstack::CloudManager",
-              :security_protocol => 'non-ssl',
-              :hostname => provider_params[:ip],
-              :port => "5000",
-              :zone_id => "1000000000001",
-              :credentials => {
-                :userid => provider_params[:username],
-                :password => provider_params[:password]
-              }
-            }
-          ]
+          :resources => [provider_params]
         }
 
         request_url = "https://admin:#{deployment.cfme_admin_password}@#{cfme_ip}/api/providers"
@@ -44,6 +32,7 @@ module Utils
           response = client.post data.to_json
           puts "Status Code: #{response.code}"
           puts response
+          response
         rescue RestClient::Exception => e
           puts e
           puts e.response
