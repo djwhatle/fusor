@@ -27,6 +27,7 @@ module Utils
         # also need to capture it so that we can log any errors
         # that may have occurred otherwise we just log the class id
         # which is useless in a debugging scenario.
+        #
         output = stdout_err.readlines
 
         cmd_filtered = cmd

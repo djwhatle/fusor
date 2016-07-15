@@ -46,7 +46,7 @@ module Actions
                 "--ssh_pass #{ssh_password} "\
                 "--db_password #{db_password}"
 
-            status, output = run_command(cmd, deployment)
+            status, output = run_command(cmd)
             fail _("Unable to run appliance console: %{output}") % { :output => output.join('; ') } unless status == 0
 
             # TODO: observing issues with running the appliance console using SSHConnection; therefore, temporarily
@@ -73,9 +73,9 @@ module Actions
 
           private
 
-          def run_command(cmd, deployment)
+          def run_command(cmd)
             ::Fusor.log.info "Running: #{cmd}"
-            status, output = Utils::Fusor::CommandUtils.run_command(cmd, deployment)
+            status, output = Utils::Fusor::CommandUtils.run_command(cmd)
             ::Fusor.log.debug "Status: #{status}, output: #{output}"
             return status, output
           end

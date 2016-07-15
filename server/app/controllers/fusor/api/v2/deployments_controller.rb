@@ -15,6 +15,7 @@ require 'fusor/deployment_logger'
 
 module Fusor
   class Api::V2::DeploymentsController < Api::V2::BaseController
+
     before_filter :find_deployment, :only => [:destroy, :show, :update, :deploy]
 
     def index
@@ -54,10 +55,10 @@ module Fusor
         raise ::ActiveRecord::RecordInvalid.new @deployment
       end
 
-      Fusor.log_change_deployment(@deployment)
+      ::Fusor.log_change_deployment(@deployment)
 
       # update the provider with the url
-      Fusor.log.debug "setting provider url to [#{@deployment.cdn_url}]"
+      ::Fusor.log.debug "setting provider url to [#{@deployment.cdn_url}]"
       provider = @deployment.organization.redhat_provider
       # just in case save it on the @deployment.org as well
       @deployment.organization.redhat_provider.repository_url = @deployment.cdn_url

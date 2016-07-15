@@ -16,6 +16,7 @@ require "uri"
 
 module Fusor
   class Api::V21::DeploymentsController < Api::V2::DeploymentsController
+
     before_filter :find_deployment, :only => [:destroy, :show, :update, :check_mount_point,
                                               :deploy, :redeploy, :validate, :log, :openshift_disk_space]
 
@@ -144,7 +145,7 @@ module Fusor
       end
 
       cmd = "sudo safe-mount.sh '#{deployment_id}' '#{address}' '#{path}' '#{type}'"
-      status, _output = Utils::Fusor::CommandUtils.run_command(cmd, nil)
+      status, _output = Utils::Fusor::CommandUtils.run_command(cmd)
 
       raise 'Unable to mount NFS share at specified mount point' unless status == 0
 

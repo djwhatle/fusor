@@ -61,7 +61,7 @@ class PasswordFilter
     return attr_values
   end
 
-  def self.filter_passwords(text_to_filter, passwords = nil, replacement_text = "[SCRUBBED]")
+  def self.filter_passwords(text_to_filter, passwords = nil, replacement_text = "[FILTERED]")
     # act as passthrough (no filtering) if we're in dev/test AND show_passwords is enabled
     if !Rails.env.production? and SETTINGS[:fusor][:system][:logging][:show_passwords]
       return text_to_filter

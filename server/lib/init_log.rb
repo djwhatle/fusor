@@ -1,5 +1,4 @@
 require "fusor/multilog"
-require "fusor/deployment_logger"
 
 module Fusor
   if Rails.root.nil?
