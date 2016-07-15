@@ -15,7 +15,7 @@ module Utils
   module CloudForms
     class AddCredentialsForHosts
       def self.add(cfme_ip, deployment)
-        Fusor.log.info "Starting - Adding Host credentials to the RHEV provider at #{cfme_ip}"
+        ::Fusor.log.info "Starting - Adding Host credentials to the RHEV provider at #{cfme_ip}"
         begin
           ssh_username  = "root"
           ssh_password  = deployment.cfme_root_password
