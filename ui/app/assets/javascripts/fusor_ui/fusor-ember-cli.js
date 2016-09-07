@@ -2448,20 +2448,28 @@ define('fusor-ember-cli/components/rhci-start', ['exports', 'ember'], function (
 
     classNames: ['rhci-start-block'],
 
-    setIsDisabledCfmeAndOpenshift: _ember['default'].observer('isRhev', 'isOpenStack', function () {
-      if (this.get('isRhev')) {
-        this.set('isDisabledOpenShift', false);
-        this.set('isDisabledCfme', false);
-      } else if (this.get('isOpenStack')) {
-        this.set('isDisabledOpenShift', true);
-        this.set('isDisabledCfme', false);
-        this.set('isOpenShift', false);
-      } else {
-        this.set('isOpenShift', false);
-        this.set('isCloudForms', false);
-        this.set('isDisabledOpenShift', true);
-        this.set('isDisabledCfme', true);
-      }
+    isDisabledRhev: _ember['default'].computed.alias('isDisabled'),
+    isDisabledOpenStack: _ember['default'].computed.alias('isDisabled'),
+
+    isDisabledCfme: _ember['default'].computed('isDisabled', 'isRhev', 'isOpenStack', function () {
+      return this.get('isDisabled') || !this.get('isRhev') && !this.get('isOpenStack');
+    }),
+
+    isDisabledOpenShift: _ember['default'].computed('isDisabled', 'isRhev', function () {
+      return this.get('isDisabled') || !this.get('isRhev');
+    }),
+
+    clearInvalidSelections: _ember['default'].observer('isRhev', 'isOpenStack', function () {
+      var _this = this;
+
+      _ember['default'].run.once(this, function () {
+        if (!_this.get('isRhev')) {
+          _this.set('isOpenShift', false);
+          if (!_this.get('isOpenStack')) {
+            _this.set('isCloudForms', false);
+          }
+        }
+      });
     }),
 
     reqDownloadLink: _ember['default'].computed('isRhev', 'isOpenStack', 'isCloudForms', 'isOpenShift', function () {
@@ -3582,9 +3590,7 @@ define("fusor-ember-cli/controllers/deployment", ["exports", "ember", "fusor-emb
 });
 define("fusor-ember-cli/controllers/deployment/start", ["exports", "ember", "fusor-ember-cli/mixins/start-controller-mixin", "fusor-ember-cli/mixins/needs-deployment-mixin"], function (exports, _ember, _fusorEmberCliMixinsStartControllerMixin, _fusorEmberCliMixinsNeedsDeploymentMixin) {
   exports["default"] = _ember["default"].Controller.extend(_fusorEmberCliMixinsStartControllerMixin["default"], _fusorEmberCliMixinsNeedsDeploymentMixin["default"], {
-    isNew: false,
-    isDisabledOpenShift: true,
-    isDisabledCloudForms: true
+    isNew: false
   });
 });
 define('fusor-ember-cli/controllers/deployments', ['exports', 'ember', 'fusor-ember-cli/mixins/pagination-controller-mixin'], function (exports, _ember, _fusorEmberCliMixinsPaginationControllerMixin) {
@@ -5036,8 +5042,16 @@ define("fusor-ember-cli/controllers/review/installation", ["exports", "ember", "
       return this.humanizedLocation(this.get('model.cfme_install_loc'));
     }),
 
+    deployOseExampleApp: _ember["default"].computed('model.openshift_sample_helloworld', function () {
+      return this.humanizedBoolean(this.get('model.openshift_sample_helloworld'));
+    }),
+
     humanizedLocation: function humanizedLocation(location) {
       return location === 'RHEV' ? 'RHV' : location;
+    },
+
+    humanizedBoolean: function humanizedBoolean(value) {
+      return value ? 'Enabled' : 'Disabled';
     },
 
     closeContinueDeployModal: function closeContinueDeployModal() {
@@ -5390,7 +5404,12 @@ define('fusor-ember-cli/controllers/rhev-options', ['exports', 'ember', 'fusor-e
     confirmRhevRootPassword: _ember['default'].computed.alias("deploymentController.confirmRhevRootPassword"),
     confirmRhevEngineAdminPassword: _ember['default'].computed.alias("deploymentController.confirmRhevEngineAdminPassword"),
 
-    cpuTypes: ['Intel Conroe Family', 'Intel Penryn Family', 'Intel Nehalem Family', 'Intel Westmere Family', 'Intel SandyBridge Family', 'Intel Haswell Family', 'Intel Haswell-noTSX Family', 'Intel Broadwell Family', 'Intel Broadwell-noTSX Family', 'AMD Opteron G1', 'AMD Opteron G2', 'AMD Opteron G3', 'AMD Opteron G4', 'AMD Opteron G5', 'IBM POWER 8'],
+    cpuTypes: _ember['default'].computed('model.cpu_families', function () {
+      return this.get('model.cpu_families');
+    }),
+    defaultCpuFamily: _ember['default'].computed('model.default_family', function () {
+      return this.get('model.default_family');
+    }),
 
     passwordValidator: _fusorEmberCliUtilsValidators.RequiredPasswordValidator.create({}),
 
@@ -10090,7 +10109,7 @@ define("fusor-ember-cli/mirage/fixtures/settings", ["exports"], function (export
     "id": 102,
     "name": "openshift_master_disk",
     "value": 30,
-    "description": "Amount of Storage (GB) for each OSE Master Node",
+    "description": "Amount of Storage (GB) for each OCP Master Node",
     "category": "Setting::Openshift",
     "settings_type": "integer",
     "default": 30,
@@ -10100,7 +10119,7 @@ define("fusor-ember-cli/mirage/fixtures/settings", ["exports"], function (export
     "id": 101,
     "name": "openshift_master_ram",
     "value": 8,
-    "description": "Amount of RAM (GB) for each OSE Master Node",
+    "description": "Amount of RAM (GB) for each OCP Master Node",
     "category": "Setting::Openshift",
     "settings_type": "integer",
     "default": 8,
@@ -10110,7 +10129,7 @@ define("fusor-ember-cli/mirage/fixtures/settings", ["exports"], function (export
     "id": 100,
     "name": "openshift_master_vcpu",
     "value": 2,
-    "description": "Number of vCPU's for each OSE Master Node",
+    "description": "Number of vCPU's for each OCP Master Node",
     "category": "Setting::Openshift",
     "settings_type": "integer",
     "default": 2,
@@ -10120,7 +10139,7 @@ define("fusor-ember-cli/mirage/fixtures/settings", ["exports"], function (export
     "id": 105,
     "name": "openshift_node_disk",
     "value": 16,
-    "description": "Amount of Storage (GB) for each OSE Worker Node",
+    "description": "Amount of Storage (GB) for each OCP Worker Node",
     "category": "Setting::Openshift",
     "settings_type": "integer",
     "default": 16,
@@ -10130,7 +10149,7 @@ define("fusor-ember-cli/mirage/fixtures/settings", ["exports"], function (export
     "id": 104,
     "name": "openshift_node_ram",
     "value": 8,
-    "description": "Amount of RAM (GB) for each OSE Worker Node",
+    "description": "Amount of RAM (GB) for each OCP Worker Node",
     "category": "Setting::Openshift",
     "settings_type": "integer",
     "default": 8,
@@ -10140,7 +10159,7 @@ define("fusor-ember-cli/mirage/fixtures/settings", ["exports"], function (export
     "id": 103,
     "name": "openshift_node_vcpu",
     "value": 1,
-    "description": "Number of vCPU's for each OSE Worker Node",
+    "description": "Number of vCPU's for each OCP Worker Node",
     "category": "Setting::Openshift",
     "settings_type": "integer",
     "default": 1,
@@ -10454,7 +10473,7 @@ define('fusor-ember-cli/mixins/deployment-controller-mixin', ['exports', 'ember'
       }
     }),
 
-    fullnameOpenShift: "OpenShift Enterprise by Red Hat",
+    fullnameOpenShift: "OpenShift Container Platform",
 
     fullnameSatellite: "Red Hat Satellite",
 
@@ -10929,7 +10948,7 @@ define('fusor-ember-cli/mixins/openshift-mixin', ['exports', 'ember', 'fusor-emb
 
     ignoreCfme: _ember['default'].computed("isCloudForms", "isRhev", "isOpenStack", "openshiftInstallLoc", "cfmeInstallLoc", function () {
       // ignore if CFME is not selected OR if both RHEV and OSP are selected
-      // but locations of CFME and OSE are different
+      // but locations of CFME and OCP are different
       return !this.get('isCloudForms') || this.get('isRhev') && this.get('isOpenStack') && (this.get('openshiftInstallLoc') === 'RHEV' && this.get('cfmeInstallLoc') === 'OpenStack' || this.get('openshiftInstallLoc') === 'OpenStack' && this.get('cfmeInstallLoc') === 'RHEV');
     }),
     substractCfme: _ember['default'].computed.not('ignoreCfme'),
@@ -11412,7 +11431,7 @@ define('fusor-ember-cli/mixins/start-controller-mixin', ['exports', 'ember'], fu
       }
     }),
 
-    fullnameOpenShift: "OpenShift Enterprise by Red Hat"
+    fullnameOpenShift: "OpenShift Container Platform"
 
   });
 });
@@ -12555,6 +12574,7 @@ define('fusor-ember-cli/router', ['exports', 'ember', 'fusor-ember-cli/config/en
 
   var Router = _ember['default'].Router.extend({
     location: _fusorEmberCliConfigEnvironment['default'].locationType,
+    rootURL: _fusorEmberCliConfigEnvironment['default'].rootURL,
     // log when Ember generates a controller or a route from a generic class
     LOG_ACTIVE_GENERATION: true,
     // log when Ember looks up a template or a view
@@ -14878,8 +14898,20 @@ define('fusor-ember-cli/routes/review/summary', ['exports', 'ember'], function (
 define('fusor-ember-cli/routes/rhci', ['exports', 'ember'], function (exports, _ember) {
   exports['default'] = _ember['default'].Route.extend({});
 });
-define('fusor-ember-cli/routes/rhev-options', ['exports', 'ember'], function (exports, _ember) {
+define('fusor-ember-cli/routes/rhev-options', ['exports', 'ember', 'ic-ajax'], function (exports, _ember, _icAjax) {
   exports['default'] = _ember['default'].Route.extend({
+    model: function model() {
+      var deploymentId = this.modelFor('deployment').get('id');
+      return (0, _icAjax['default'])({
+        url: '/fusor/api/v21/deployments/' + deploymentId + '/compatible_cpu_families',
+        type: 'GET',
+        headers: {
+          "Accept": "application/json",
+          "Content-Type": "application/json",
+          "X-CSRF-Token": _ember['default'].$('meta[name="csrf-token"]').attr('content')
+        }
+      });
+    },
     deactivate: function deactivate() {
       return this.send('saveDeployment', null);
     }
@@ -39985,7 +40017,7 @@ define("fusor-ember-cli/templates/openshift/openshift-nodes", ["exports"], funct
         var el3 = dom.createTextNode("\n\n\n    ");
         dom.appendChild(el2, el3);
         var el3 = dom.createElement("p");
-        var el4 = dom.createTextNode("\n      Select where to provision the OpenShift Enterprise nodes.\n    ");
+        var el4 = dom.createTextNode("\n      Select where to provision the OpenShift Container Platform nodes.\n    ");
         dom.appendChild(el3, el4);
         dom.appendChild(el2, el3);
         var el3 = dom.createTextNode("\n\n    ");
@@ -42943,7 +42975,7 @@ define("fusor-ember-cli/templates/req-openshift", ["exports"], function (exports
         dom.appendChild(el1, el2);
         var el2 = dom.createElement("p");
         dom.setAttribute(el2, "class", "req-title");
-        var el3 = dom.createTextNode("OpenShift Enterprise by Red Hat");
+        var el3 = dom.createTextNode("OpenShift Container Platform");
         dom.appendChild(el2, el3);
         dom.appendChild(el1, el2);
         var el2 = dom.createTextNode("\n\n  ");
@@ -42953,7 +42985,7 @@ define("fusor-ember-cli/templates/req-openshift", ["exports"], function (exports
         var el3 = dom.createTextNode("\n    ");
         dom.appendChild(el2, el3);
         var el3 = dom.createElement("li");
-        var el4 = dom.createTextNode("Requires Red Hat Virtualization to be selected to deploy OpenShift Enterprise");
+        var el4 = dom.createTextNode("Requires Red Hat Virtualization to be selected to deploy OpenShift Container Platform");
         dom.appendChild(el3, el4);
         dom.appendChild(el2, el3);
         var el3 = dom.createTextNode("\n    ");
@@ -48540,7 +48572,7 @@ define("fusor-ember-cli/templates/rhev-options", ["exports"], function (exports)
             "column": 0
           },
           "end": {
-            "line": 50,
+            "line": 49,
             "column": 0
           }
         },
@@ -48613,7 +48645,7 @@ define("fusor-ember-cli/templates/rhev-options", ["exports"], function (exports)
         dom.appendChild(el0, el1);
         var el1 = dom.createComment("");
         dom.appendChild(el0, el1);
-        var el1 = dom.createTextNode("\n\n");
+        var el1 = dom.createTextNode("\n");
         dom.appendChild(el0, el1);
         return el0;
       },
@@ -48630,7 +48662,7 @@ define("fusor-ember-cli/templates/rhev-options", ["exports"], function (exports)
         morphs[7] = dom.createMorphAt(fragment, 2, 2, contextualElement);
         return morphs;
       },
-      statements: [["inline", "text-f", [], ["label", "Root Password", "type", "password", "value", ["subexpr", "@mut", [["get", "rhevRootPassword", ["loc", [null, [5, 59], [5, 75]]]]], [], []], "cssId", "rhev-root-password", "isRequired", true, "disabled", ["subexpr", "@mut", [["get", "isStarted", ["loc", [null, [6, 31], [6, 40]]]]], [], []], "validator", ["subexpr", "@mut", [["get", "passwordValidator", ["loc", [null, [6, 51], [6, 68]]]]], [], []], "help-inline", "Applies to root user accounts for deployed RHV hosts", "placeholder", "Must be 8 or more characters"], ["loc", [null, [5, 6], [8, 50]]]], ["inline", "text-f", [], ["label", "Confirm Root Password", "type", "password", "value", ["subexpr", "@mut", [["get", "confirmRhevRootPassword", ["loc", [null, [10, 67], [10, 90]]]]], [], []], "cssId", "confirm-rhev-root-password", "isRequired", true, "disabled", ["subexpr", "@mut", [["get", "isStarted", ["loc", [null, [11, 31], [11, 40]]]]], [], []], "validator", ["subexpr", "@mut", [["get", "confirmRhevRootPasswordValidator", ["loc", [null, [11, 51], [11, 83]]]]], [], []], "placeholder", "Must match root password"], ["loc", [null, [10, 6], [12, 46]]]], ["inline", "text-f", [], ["label", "Engine Admin Password", "type", "password", "value", ["subexpr", "@mut", [["get", "rhevEngineAdminPassword", ["loc", [null, [14, 67], [14, 90]]]]], [], []], "cssId", "rhev-engine-admin-password", "isRequired", true, "disabled", ["subexpr", "@mut", [["get", "isStarted", ["loc", [null, [15, 31], [15, 40]]]]], [], []], "validator", ["subexpr", "@mut", [["get", "passwordValidator", ["loc", [null, [15, 51], [15, 68]]]]], [], []], "help-inline", "Applies to admin user account for RHV web UI", "placeholder", "Must be 8 or more characters"], ["loc", [null, [14, 6], [17, 50]]]], ["inline", "text-f", [], ["label", "Confirm Engine Admin Password", "type", "password", "value", ["subexpr", "@mut", [["get", "confirmRhevEngineAdminPassword", ["loc", [null, [19, 75], [19, 105]]]]], [], []], "cssId", "confirm-rhev-engine-pdmin-password", "isRequired", true, "disabled", ["subexpr", "@mut", [["get", "isStarted", ["loc", [null, [20, 31], [20, 40]]]]], [], []], "validator", ["subexpr", "@mut", [["get", "confirmRhevEngineAdminPasswordValidator", ["loc", [null, [20, 51], [20, 90]]]]], [], []], "placeholder", "Must match engine admin password"], ["loc", [null, [19, 6], [21, 54]]]], ["inline", "text-f", [], ["label", "Data Center Name", "value", ["subexpr", "@mut", [["get", "rhevDataCenterName", ["loc", [null, [23, 46], [23, 64]]]]], [], []], "placeholder", "Leave blank for default", "cssId", "rhev-data-center-name", "disabled", ["subexpr", "@mut", [["get", "isDCConfigDisabled", ["loc", [null, [24, 24], [24, 42]]]]], [], []], "validator", ["subexpr", "@mut", [["get", "dataCenterNameValidator", ["loc", [null, [24, 53], [24, 76]]]]], [], []], "showValidationError", true], ["loc", [null, [23, 6], [24, 103]]]], ["inline", "text-f", [], ["label", "Cluster Name", "value", ["subexpr", "@mut", [["get", "rhevClusterName", ["loc", [null, [26, 42], [26, 57]]]]], [], []], "placeholder", "Leave blank for default", "cssId", "rhev-cluster-name", "disabled", ["subexpr", "@mut", [["get", "isDCConfigDisabled", ["loc", [null, [27, 24], [27, 42]]]]], [], []], "validator", ["subexpr", "@mut", [["get", "clusterNameValidator", ["loc", [null, [27, 53], [27, 73]]]]], [], []], "showValidationError", true], ["loc", [null, [26, 6], [27, 100]]]], ["inline", "select-simple-f", [], ["label", "CPU Type", "content", ["subexpr", "@mut", [["get", "cpuTypes", ["loc", [null, [31, 34], [31, 42]]]]], [], []], "value", ["subexpr", "@mut", [["get", "rhevCpuType", ["loc", [null, [32, 32], [32, 43]]]]], [], []], "prompt", "Intel Nehalem Family", "renderInPlace", true, "disabled", ["subexpr", "@mut", [["get", "isStarted", ["loc", [null, [35, 35], [35, 44]]]]], [], []], "action", "setSelectValue", "fieldName", "rhevCpuType"], ["loc", [null, [30, 8], [37, 51]]]], ["inline", "cancel-back-next", [], ["backRouteName", ["subexpr", "@mut", [["get", "optionsBackRouteName", ["loc", [null, [43, 33], [43, 53]]]]], [], []], "disableBack", false, "nextRouteName", "storage", "disableNext", ["subexpr", "@mut", [["get", "disableNextRhevOptions", ["loc", [null, [46, 31], [46, 53]]]]], [], []], "disableCancel", ["subexpr", "@mut", [["get", "isStarted", ["loc", [null, [47, 33], [47, 42]]]]], [], []], "deploymentName", ["subexpr", "@mut", [["get", "deploymentName", ["loc", [null, [48, 34], [48, 48]]]]], [], []]], ["loc", [null, [43, 0], [48, 50]]]]],
+      statements: [["inline", "text-f", [], ["label", "Root Password", "type", "password", "value", ["subexpr", "@mut", [["get", "rhevRootPassword", ["loc", [null, [5, 59], [5, 75]]]]], [], []], "cssId", "rhev-root-password", "isRequired", true, "disabled", ["subexpr", "@mut", [["get", "isStarted", ["loc", [null, [6, 31], [6, 40]]]]], [], []], "validator", ["subexpr", "@mut", [["get", "passwordValidator", ["loc", [null, [6, 51], [6, 68]]]]], [], []], "help-inline", "Applies to root user accounts for deployed RHV hosts", "placeholder", "Must be 8 or more characters"], ["loc", [null, [5, 6], [8, 50]]]], ["inline", "text-f", [], ["label", "Confirm Root Password", "type", "password", "value", ["subexpr", "@mut", [["get", "confirmRhevRootPassword", ["loc", [null, [10, 67], [10, 90]]]]], [], []], "cssId", "confirm-rhev-root-password", "isRequired", true, "disabled", ["subexpr", "@mut", [["get", "isStarted", ["loc", [null, [11, 31], [11, 40]]]]], [], []], "validator", ["subexpr", "@mut", [["get", "confirmRhevRootPasswordValidator", ["loc", [null, [11, 51], [11, 83]]]]], [], []], "placeholder", "Must match root password"], ["loc", [null, [10, 6], [12, 46]]]], ["inline", "text-f", [], ["label", "Engine Admin Password", "type", "password", "value", ["subexpr", "@mut", [["get", "rhevEngineAdminPassword", ["loc", [null, [14, 67], [14, 90]]]]], [], []], "cssId", "rhev-engine-admin-password", "isRequired", true, "disabled", ["subexpr", "@mut", [["get", "isStarted", ["loc", [null, [15, 31], [15, 40]]]]], [], []], "validator", ["subexpr", "@mut", [["get", "passwordValidator", ["loc", [null, [15, 51], [15, 68]]]]], [], []], "help-inline", "Applies to admin user account for RHV web UI", "placeholder", "Must be 8 or more characters"], ["loc", [null, [14, 6], [17, 50]]]], ["inline", "text-f", [], ["label", "Confirm Engine Admin Password", "type", "password", "value", ["subexpr", "@mut", [["get", "confirmRhevEngineAdminPassword", ["loc", [null, [19, 75], [19, 105]]]]], [], []], "cssId", "confirm-rhev-engine-pdmin-password", "isRequired", true, "disabled", ["subexpr", "@mut", [["get", "isStarted", ["loc", [null, [20, 31], [20, 40]]]]], [], []], "validator", ["subexpr", "@mut", [["get", "confirmRhevEngineAdminPasswordValidator", ["loc", [null, [20, 51], [20, 90]]]]], [], []], "placeholder", "Must match engine admin password"], ["loc", [null, [19, 6], [21, 54]]]], ["inline", "text-f", [], ["label", "Data Center Name", "value", ["subexpr", "@mut", [["get", "rhevDataCenterName", ["loc", [null, [23, 46], [23, 64]]]]], [], []], "placeholder", "Leave blank for default", "cssId", "rhev-data-center-name", "disabled", ["subexpr", "@mut", [["get", "isDCConfigDisabled", ["loc", [null, [24, 24], [24, 42]]]]], [], []], "validator", ["subexpr", "@mut", [["get", "dataCenterNameValidator", ["loc", [null, [24, 53], [24, 76]]]]], [], []], "showValidationError", true], ["loc", [null, [23, 6], [24, 103]]]], ["inline", "text-f", [], ["label", "Cluster Name", "value", ["subexpr", "@mut", [["get", "rhevClusterName", ["loc", [null, [26, 42], [26, 57]]]]], [], []], "placeholder", "Leave blank for default", "cssId", "rhev-cluster-name", "disabled", ["subexpr", "@mut", [["get", "isDCConfigDisabled", ["loc", [null, [27, 24], [27, 42]]]]], [], []], "validator", ["subexpr", "@mut", [["get", "clusterNameValidator", ["loc", [null, [27, 53], [27, 73]]]]], [], []], "showValidationError", true], ["loc", [null, [26, 6], [27, 100]]]], ["inline", "select-simple-f", [], ["label", "CPU Type", "content", ["subexpr", "@mut", [["get", "cpuTypes", ["loc", [null, [31, 34], [31, 42]]]]], [], []], "value", ["subexpr", "@mut", [["get", "rhevCpuType", ["loc", [null, [32, 32], [32, 43]]]]], [], []], "prompt", ["subexpr", "@mut", [["get", "defaultCpuFamily", ["loc", [null, [33, 33], [33, 49]]]]], [], []], "renderInPlace", true, "disabled", ["subexpr", "@mut", [["get", "isStarted", ["loc", [null, [35, 35], [35, 44]]]]], [], []], "action", "setSelectValue", "fieldName", "rhevCpuType"], ["loc", [null, [30, 8], [37, 51]]]], ["inline", "cancel-back-next", [], ["backRouteName", ["subexpr", "@mut", [["get", "optionsBackRouteName", ["loc", [null, [43, 33], [43, 53]]]]], [], []], "disableBack", false, "nextRouteName", "storage", "disableNext", ["subexpr", "@mut", [["get", "disableNextRhevOptions", ["loc", [null, [46, 31], [46, 53]]]]], [], []], "disableCancel", ["subexpr", "@mut", [["get", "isStarted", ["loc", [null, [47, 33], [47, 42]]]]], [], []], "deploymentName", ["subexpr", "@mut", [["get", "deploymentName", ["loc", [null, [48, 34], [48, 48]]]]], [], []]], ["loc", [null, [43, 0], [48, 50]]]]],
       locals: [],
       templates: []
     };
@@ -55277,11 +55309,11 @@ define('fusor-ember-cli/views/application', ['exports', 'ember'], function (expo
 /* jshint ignore:start */
 
 define('fusor-ember-cli/config/environment', ['ember'], function(Ember) {
-  return { 'default': {"modulePrefix":"fusor-ember-cli","environment":"development","baseURL":"/","locationType":"hash","EmberENV":{"FEATURES":{}},"contentSecurityPolicyHeader":"Disabled-Content-Security-Policy","emberDevTools":{"global":true},"APP":{"LOG_ACTIVE_GENERATION":true,"LOG_TRANSITIONS":true,"LOG_VIEW_LOOKUPS":true,"rootElement":"#ember-app","name":"fusor-ember-cli","version":"0.0.0+2237e816"},"ember-cli-mirage":{"enabled":false,"usingProxy":false},"contentSecurityPolicy":{"default-src":"'none'","script-src":"'self' 'unsafe-eval'","font-src":"'self'","connect-src":"'self'","img-src":"'self'","style-src":"'self'","media-src":"'self'"},"ember-devtools":{"enabled":true,"global":false},"exportApplicationGlobal":true}};
+  return { 'default': {"modulePrefix":"fusor-ember-cli","environment":"development","baseURL":"/","rootURL":"/r/","locationType":"history","EmberENV":{"FEATURES":{}},"contentSecurityPolicyHeader":"Disabled-Content-Security-Policy","emberDevTools":{"global":true},"APP":{"LOG_ACTIVE_GENERATION":true,"LOG_TRANSITIONS":true,"LOG_VIEW_LOOKUPS":true,"rootElement":"#ember-app","name":"fusor-ember-cli","version":"0.0.0+58c77946"},"ember-cli-mirage":{"enabled":false,"usingProxy":false},"contentSecurityPolicy":{"default-src":"'none'","script-src":"'self' 'unsafe-eval'","font-src":"'self'","connect-src":"'self'","img-src":"'self'","style-src":"'self'","media-src":"'self'"},"ember-devtools":{"enabled":true,"global":false},"exportApplicationGlobal":true}};
 });
 
 if (!runningTests) {
-  require("fusor-ember-cli/app")["default"].create({"LOG_ACTIVE_GENERATION":true,"LOG_TRANSITIONS":true,"LOG_VIEW_LOOKUPS":true,"rootElement":"#ember-app","name":"fusor-ember-cli","version":"0.0.0+2237e816"});
+  require("fusor-ember-cli/app")["default"].create({"LOG_ACTIVE_GENERATION":true,"LOG_TRANSITIONS":true,"LOG_VIEW_LOOKUPS":true,"rootElement":"#ember-app","name":"fusor-ember-cli","version":"0.0.0+58c77946"});
 }
 
 /* jshint ignore:end */
