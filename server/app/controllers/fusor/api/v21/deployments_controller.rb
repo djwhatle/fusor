@@ -18,7 +18,8 @@ module Fusor
   class Api::V21::DeploymentsController < Api::V2::DeploymentsController
 
     before_filter :find_deployment, :only => [:destroy, :show, :update, :check_mount_point,
-                                              :deploy, :redeploy, :validate, :log, :openshift_disk_space]
+                                              :deploy, :redeploy, :validate, :log,
+                                              :openshift_disk_space, :cpu_families]
 
     rescue_from Encoding::UndefinedConversionError, :with => :ignore_it
 
@@ -132,6 +133,72 @@ module Fusor
         render json: { :error => message }, status: 400
       end
     end
+
+    def compatible_cpu_families
+      cpu_keywords_values = [
+        # Intel processor families
+        { brand: 'intel', keywords: ['conroe'], value: 0 },
+        { brand: 'intel', keywords: ['penryn'], value: 1 },
+        { brand: 'intel', keywords: ['nehalem'], value: 2 },
+        { brand: 'intel', keywords: ['westmere'], value: 3 },
+        { brand: 'intel', keywords: ['sandy', 'bridge'], value: 4 },
+        { brand: 'intel', keywords: ['haswell', 'no', 'tsx'], value: 5 },
+        { brand: 'intel', keywords: ['haswell'], value: 6 },
+        { brand: 'intel', keywords: ['broadwell', 'no', 'tsx'], value: 7 },
+        { brand: 'intel', keywords: ['broadwell'], value: 8 },
+        # AMD processor families
+        { brand: 'amd', keywords: ['opteron', 'g1'], value: 0 },
+        { brand: 'amd', keywords: ['opteron', 'g2'], value: 1 },
+        { brand: 'amd', keywords: ['opteron', 'g3'], value: 2 },
+        { brand: 'amd', keywords: ['opteron', 'g4'], value: 3 },
+        { brand: 'amd', keywords: ['opteron', 'g5'], value: 4 },
+      ]
+
+      current_best_cpu = { brand: 'none', keywords: [], value: -1 }
+
+      # @deployment is provided by pre-filter run of find_deployment
+      rhv_hypervisors_list = @deployment.discovered_hosts
+
+      # find the fact_name_id corresponding to "processors"
+      processors_id = FactName.where(name: 'processors').first.id
+
+      processor_models_list = []
+
+      rhv_hypervisors_list.each do |hypervisor|
+        processor_str = hypervisor.fact_values.where("fact_name_id" => processors_id).first.value
+        processor_hash = eval(processor_str)
+        processor_models = processor_hash["models"]
+        processor_models_list += processor_models
+        # processor_models.each do |processor_model|
+        # end
+      end
+
+      cpu_dropdown_lists = {
+        'intel': [
+          'Intel Conroe Family',
+          'Intel Penryn Family',
+          'Intel Nehalem Family',
+          'Intel Westmere Family',
+          'Intel SandyBridge Family',
+          'Intel Haswell-noTSX Family',
+          'Intel Haswell Family',
+          'Intel Broadwell-noTSX Family',
+          'Intel Broadwell Family'
+        ],
+        'amd': [
+          'AMD Opteron G1',
+          'AMD Opteron G2',
+          'AMD Opteron G3',
+          'AMD Opteron G4',
+          'AMD Opteron G5'
+        ]
+      }
+
+      rhv_hypervisors_addrs = rhv_hypervisors_list.map { |hypervisor| hypervisor.to_s }
+      render json: { "rhv_engine": rhv_engine, "rhv_hypervisors": rhv_hypervisors_list}, status: 200
+    end
+
+
 
     def check_mount_point
       mount_address = params['address']
