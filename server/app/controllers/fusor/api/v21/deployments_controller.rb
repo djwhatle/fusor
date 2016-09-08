@@ -19,7 +19,7 @@ module Fusor
 
     before_filter :find_deployment, :only => [:destroy, :show, :update, :check_mount_point,
                                               :deploy, :redeploy, :validate, :log,
-                                              :openshift_disk_space, :cpu_families]
+                                              :openshift_disk_space, :compatible_cpu_families]
 
     rescue_from Encoding::UndefinedConversionError, :with => :ignore_it
 
@@ -135,45 +135,12 @@ module Fusor
     end
 
     def compatible_cpu_families
-      cpu_keywords_values = [
-        # Intel processor families
-        { brand: 'intel', keywords: ['conroe'], value: 0 },
-        { brand: 'intel', keywords: ['penryn'], value: 1 },
-        { brand: 'intel', keywords: ['nehalem'], value: 2 },
-        { brand: 'intel', keywords: ['westmere'], value: 3 },
-        { brand: 'intel', keywords: ['sandy', 'bridge'], value: 4 },
-        { brand: 'intel', keywords: ['haswell', 'no', 'tsx'], value: 5 },
-        { brand: 'intel', keywords: ['haswell'], value: 6 },
-        { brand: 'intel', keywords: ['broadwell', 'no', 'tsx'], value: 7 },
-        { brand: 'intel', keywords: ['broadwell'], value: 8 },
-        # AMD processor families
-        { brand: 'amd', keywords: ['opteron', 'g1'], value: 0 },
-        { brand: 'amd', keywords: ['opteron', 'g2'], value: 1 },
-        { brand: 'amd', keywords: ['opteron', 'g3'], value: 2 },
-        { brand: 'amd', keywords: ['opteron', 'g4'], value: 3 },
-        { brand: 'amd', keywords: ['opteron', 'g5'], value: 4 },
-      ]
+      # a compatible subset of these cpu families will be returned
+      # arranged oldest first => new (:intel[0] == oldest)
 
-      current_best_cpu = { brand: 'none', keywords: [], value: -1 }
-
-      # @deployment is provided by pre-filter run of find_deployment
-      rhv_hypervisors_list = @deployment.discovered_hosts
-
-      # find the fact_name_id corresponding to "processors"
-      processors_id = FactName.where(name: 'processors').first.id
-
-      processor_models_list = []
-
-      rhv_hypervisors_list.each do |hypervisor|
-        processor_str = hypervisor.fact_values.where("fact_name_id" => processors_id).first.value
-        processor_hash = eval(processor_str)
-        processor_models = processor_hash["models"]
-        processor_models_list += processor_models
-        # processor_models.each do |processor_model|
-        # end
-      end
-
-      cpu_dropdown_lists = {
+      # if amd processors are being used, all amd processors will returned
+      # if auto-detection doesn't match any processors, all options will be returned
+      cpu_fam_candidates = {
         'intel': [
           'Intel Conroe Family',
           'Intel Penryn Family',
@@ -182,8 +149,6 @@ module Fusor
           'Intel SandyBridge Family',
           'Intel Haswell-noTSX Family',
           'Intel Haswell Family',
-          'Intel Broadwell-noTSX Family',
-          'Intel Broadwell Family'
         ],
         'amd': [
           'AMD Opteron G1',
@@ -191,14 +156,72 @@ module Fusor
           'AMD Opteron G3',
           'AMD Opteron G4',
           'AMD Opteron G5'
+        ],
+        'ibm': [
+          'IBM POWER 8'
         ]
       }
+      # cpu family of cluster should match the oldest cpu present
+      # in the cluster, therefore newest processors are checked first
+      # and can be overwritten by older processor later in iteration
+      cpu_fams = [
+        # Intel processor families
+        { brand: 'intel', keywords: ['haswell'], position: 6 },
+        { brand: 'intel', keywords: ['haswell', 'no', 'tsx'], position: 5 },
+        { brand: 'intel', keywords: ['sandy', 'bridge'], position: 4 },
+        { brand: 'intel', keywords: ['westmere'], position: 3 },
+        { brand: 'intel', keywords: ['nehalem'], position: 2 },
+        { brand: 'intel', keywords: ['penryn'], position: 1 },
+        { brand: 'intel', keywords: ['conroe'], position: 0 },
+        # AMD processor families - no generational trimming
+        { brand: 'amd', keywords: ['amd', 'opteron'], position: 4 },
+        # IBM processor families
+        { brand: 'ibm', keywords: ['ibm', 'power', '8'], position: 0 },
+      ]
 
-      rhv_hypervisors_addrs = rhv_hypervisors_list.map { |hypervisor| hypervisor.to_s }
-      render json: { "rhv_engine": rhv_engine, "rhv_hypervisors": rhv_hypervisors_list}, status: 200
+      # placeholder for best compatible cpu family for cluster
+      best_cpu_fam = { brand: 'none', keywords: [], value: -1 }
+
+      # @deployment is provided by pre-filter run of find_deployment
+      rhv_hypervisors_list = @deployment.discovered_hosts
+
+      # find the fact_name_id corresponding to "processors"
+      processors_id = FactName.where(name: 'processors').first.id
+
+      # build string containing all cpu families attached to hypervisors
+      processor_concat = ''
+
+      rhv_hypervisors_list.each do |hypervisor|
+        processor_str = hypervisor.fact_values.where("fact_name_id" => processors_id).first.value
+        processor_hash = eval(processor_str)
+        processor_models = processor_hash["models"]
+        processor_concat << (processor_models.join(' ; ').downcase)
+      end
+
+      cpu_fams.each do |cpu_fam|
+        # if we found a compatible brand_X cpu, and now we're checking brand_Z cpus, break
+        if !(best_cpu_fam[:brand] == (cpu_fam[:brand]) || best_cpu_fam[:brand] == ('none'))
+          break
+        end
+        # ensure that all keywords match before setting new compatible best cpu family
+        if cpu_fam[:keywords].all? { |keyword| processor_concat.include? keyword }
+          best_cpu_fam = cpu_fam
+        end
+      end
+
+      cpu_fams_to_return = []
+
+      if best_cpu_fam[:brand] == 'none'
+        # if best_cpu_fam is still default of 'none', return entire cpu list
+        cpu_fam_candidates.values.each do |cpu_list| cpu_fams_to_return << cpu_list end
+        cpu_fams_to_return.flatten!
+      else
+        # get cpu family candidates by brand | keep all families from best_cpu_fam and older
+        cpu_fams_to_return = cpu_fam_candidates[best_cpu_fam[:brand].to_sym][0..best_cpu_fam[:position]]
+      end
+
+      render json: { cpu_families: cpu_fams_to_return }, status: 200
     end
-
-
 
     def check_mount_point
       mount_address = params['address']
