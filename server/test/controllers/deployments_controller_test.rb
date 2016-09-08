@@ -515,5 +515,65 @@ module Fusor
       end
     end
 
+
+  context 'lcd_of_cpus' do
+
+    test 'lcd_of_cpus should return all cpus if no known brand found cluster cpu list' do
+      processor_concat = 'unlisted brand quad core processor ; ' * 4
+      processor_family_list = @controller.lcd_of_cpus(processor_concat)
+      # there should be 13 or more (in the future) cpu families in a full listing
+      assert processor_family_list.count >= 13
+    end
+
+    test 'lcd_of_cpus should return all intel cpus if "intel" found, but known arch not found' do
+      processor_concat = 'intel core processor (baybridge, not_real) ; ' * 4
+      processor_family_list = @controller.lcd_of_cpus(processor_concat)
+      # there should be 7 or more (in the future) intel cpu architectures
+      assert processor_family_list.count >= 7
+      assert processor_family_list[0].downcase.include?('intel')
+      assert processor_family_list[-1].downcase.include?('intel')
+    end
+
+    test 'lcd_of_cpus should return all amd cpus if "amd" found, but known arch not found' do
+      processor_concat = 'amd opteron(tm) processor 6172 ; ' * 4
+      processor_concat << 'amd opteron(tm) processor 6362 ; ' * 4
+      processor_family_list = @controller.lcd_of_cpus(processor_concat)
+      # there should be 5 or more (in the future) amd cpu architectures
+      assert processor_family_list.count >= 5
+      assert processor_family_list[0].downcase.include?('amd')
+      assert processor_family_list[-1].downcase.include?('amd')
+    end
+
+    test 'lcd_of_cpus should return all ibm cpus if "ibm" found, but known arch not found' do
+      processor_concat = 'ibm powerpc processor ; ' * 4
+      processor_family_list = @controller.lcd_of_cpus(processor_concat)
+      # there should be 1 or more (in the future) ibm cpu architectures
+      assert processor_family_list.count >= 1
+      assert processor_family_list[0].downcase.include?('ibm')
+      assert processor_family_list[-1].downcase.include?('ibm')
+    end
+
+    test 'lcd_of_cpus should return all ibm power 8 and older if ibm power 8 found' do
+      processor_concat = 'ibm power8 processor ; ' * 4
+      processor_family_list = @controller.lcd_of_cpus(processor_concat)
+      assert processor_family_list[0].downcase.include?('ibm')
+      assert processor_family_list[-1].downcase.include?('ibm')
+    end
+
+    test 'lcd_of_cpus should return haswell-notsx and older if entire cluster is haswell-notsx' do
+      processor_concat = 'intel core processor (haswell, no tsx) ; ' * 4
+      processor_family_list = @controller.lcd_of_cpus(processor_concat)
+      # there should be exactly 6 cpu families at and before haswell-notsx
+      assert processor_family_list.count == 6
+    end
+
+    test 'lcd_of_cpus should return nehalem, penryn, and conroe if sandybridge and nehalem cpus in cluster' do
+      processor_concat = 'intel core processor (sandybridge, no tsx) ; ' * 4
+      processor_concat << 'intel core processor (nehalem, no tsx) ; ' * 4
+      processor_family_list = @controller.lcd_of_cpus(processor_concat)
+      assert processor_family_list.count == 3
+    end
+  end
+
   end
 end

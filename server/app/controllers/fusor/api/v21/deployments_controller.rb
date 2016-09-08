@@ -135,6 +135,29 @@ module Fusor
     end
 
     def compatible_cpu_families
+      # @deployment is provided by pre-filter run of find_deployment
+      rhv_hypervisors_list = @deployment.discovered_hosts
+
+      # find the fact_name_id corresponding to "processors"
+      processors_id = FactName.where(name: 'processors').first.id
+
+      # build string containing all cpu families attached to hypervisors
+      processor_concat = ''
+
+      rhv_hypervisors_list.each do |hypervisor|
+        processor_str = hypervisor.fact_values.where("fact_name_id" => processors_id).first.value
+        processor_hash = eval(processor_str)
+        processor_models = processor_hash["models"]
+        processor_concat << (processor_models.join(' ; ').downcase)
+      end
+
+      cpu_fams_to_return = lcd_of_cpus(processor_concat)
+      render json: { cpu_families: cpu_fams_to_return }, status: 200
+    end
+
+    # finds the least-common-denominator (oldest architecture) in rhv cluster
+    def lcd_of_cpus(processor_concat)
+      # processor_concat = all processors in cluster as string
       # a compatible subset of these cpu families will be returned
       # arranged oldest first => new (:intel[0] == oldest)
 
@@ -166,6 +189,7 @@ module Fusor
       # and can be overwritten by older processor later in iteration
       cpu_fams = [
         # Intel processor families
+        { brand: 'intel', keywords: ['intel'], position: 6 }, #intel wildcard
         { brand: 'intel', keywords: ['haswell'], position: 6 },
         { brand: 'intel', keywords: ['haswell', 'no', 'tsx'], position: 5 },
         { brand: 'intel', keywords: ['sandy', 'bridge'], position: 4 },
@@ -174,29 +198,14 @@ module Fusor
         { brand: 'intel', keywords: ['penryn'], position: 1 },
         { brand: 'intel', keywords: ['conroe'], position: 0 },
         # AMD processor families - no generational trimming
-        { brand: 'amd', keywords: ['amd', 'opteron'], position: 4 },
+        { brand: 'amd', keywords: ['amd'], position: 4 }, #amd wildcard
         # IBM processor families
+        { brand: 'ibm', keywords: ['ibm'], position: 0 }, #ibm wildcard
         { brand: 'ibm', keywords: ['ibm', 'power', '8'], position: 0 },
       ]
 
       # placeholder for best compatible cpu family for cluster
       best_cpu_fam = { brand: 'none', keywords: [], value: -1 }
-
-      # @deployment is provided by pre-filter run of find_deployment
-      rhv_hypervisors_list = @deployment.discovered_hosts
-
-      # find the fact_name_id corresponding to "processors"
-      processors_id = FactName.where(name: 'processors').first.id
-
-      # build string containing all cpu families attached to hypervisors
-      processor_concat = ''
-
-      rhv_hypervisors_list.each do |hypervisor|
-        processor_str = hypervisor.fact_values.where("fact_name_id" => processors_id).first.value
-        processor_hash = eval(processor_str)
-        processor_models = processor_hash["models"]
-        processor_concat << (processor_models.join(' ; ').downcase)
-      end
 
       cpu_fams.each do |cpu_fam|
         # if we found a compatible brand_X cpu, and now we're checking brand_Z cpus, break
@@ -220,7 +229,7 @@ module Fusor
         cpu_fams_to_return = cpu_fam_candidates[best_cpu_fam[:brand].to_sym][0..best_cpu_fam[:position]]
       end
 
-      render json: { cpu_families: cpu_fams_to_return }, status: 200
+      return cpu_fams_to_return
     end
 
     def check_mount_point
