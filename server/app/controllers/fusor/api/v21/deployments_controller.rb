@@ -151,17 +151,20 @@ module Fusor
         processor_concat << (processor_models.join(' ; ').downcase)
       end
 
-      cpu_fams_to_return = lcd_of_cpus(processor_concat)
-      render json: { cpu_families: cpu_fams_to_return }, status: 200
+      cpu_families_and_default = lcd_of_cpus(processor_concat)
+      render json: cpu_families_and_default, status: 200
     end
 
-    # finds the least-common-denominator (oldest architecture) in rhv cluster
     def lcd_of_cpus(processor_concat)
-      # processor_concat = all processors in cluster as string
-      # a compatible subset of these cpu families will be returned
-      # arranged oldest first => new (:intel[0] == oldest)
+      # description: # finds oldest architecture, brand in rhv cluster
 
+      # input:  processor_concat = all processors in cluster as string
+      # output: a compatible list of cpu families will be returned oldest first.
+      # output: a best guess default cpu family to display
+
+      # if intel processors are being used, installed generation and older will be returned
       # if amd processors are being used, all amd processors will returned
+      # if ibm processors are being used, all ibm processors will be returned
       # if auto-detection doesn't match any processors, all options will be returned
       cpu_fam_candidates = {
         'intel': [
@@ -184,12 +187,13 @@ module Fusor
           'IBM POWER 8'
         ]
       }
+
       # cpu family of cluster should match the oldest cpu present
       # in the cluster, therefore newest processors are checked first
       # and can be overwritten by older processor later in iteration
       cpu_fams = [
         # Intel processor families
-        { brand: 'intel', keywords: ['intel'], position: 6 }, #intel wildcard
+        { brand: 'intel', keywords: ['intel'], position: -1 }, #intel wildcard
         { brand: 'intel', keywords: ['haswell'], position: 6 },
         { brand: 'intel', keywords: ['haswell', 'no', 'tsx'], position: 5 },
         { brand: 'intel', keywords: ['sandy', 'bridge'], position: 4 },
@@ -198,17 +202,18 @@ module Fusor
         { brand: 'intel', keywords: ['penryn'], position: 1 },
         { brand: 'intel', keywords: ['conroe'], position: 0 },
         # AMD processor families - no generational trimming
-        { brand: 'amd', keywords: ['amd'], position: 4 }, #amd wildcard
+        { brand: 'amd', keywords: ['amd'], position: -1 }, #amd wildcard
         # IBM processor families
-        { brand: 'ibm', keywords: ['ibm'], position: 0 }, #ibm wildcard
+        { brand: 'ibm', keywords: ['ibm'], position: -1 }, #ibm wildcard
         { brand: 'ibm', keywords: ['ibm', 'power', '8'], position: 0 },
       ]
 
       # placeholder for best compatible cpu family for cluster
       best_cpu_fam = { brand: 'none', keywords: [], value: -1 }
 
+      # iterate through cpu_fams looking for keyword matches
       cpu_fams.each do |cpu_fam|
-        # if we found a compatible brand_X cpu, and now we're checking brand_Z cpus, break
+        # if brand_X cpu found, break once we start checking brand_Z
         if !(best_cpu_fam[:brand] == (cpu_fam[:brand]) || best_cpu_fam[:brand] == ('none'))
           break
         end
@@ -218,18 +223,39 @@ module Fusor
         end
       end
 
-      cpu_fams_to_return = []
-
       if best_cpu_fam[:brand] == 'none'
-        # if best_cpu_fam is still default of 'none', return entire cpu list
-        cpu_fam_candidates.values.each do |cpu_list| cpu_fams_to_return << cpu_list end
-        cpu_fams_to_return.flatten!
+        # return all cpu families if keyword matches failed
+        all_cpu_fams = []
+        cpu_fam_candidates.values.each do |brand_fams| all_cpu_fams << brand_fams end
+        all_cpu_fams.flatten!
+        return {
+          cpu_families: all_cpu_fams,
+          default_family: 'Intel Nehalem Family'
+        }
       else
-        # get cpu family candidates by brand | keep all families from best_cpu_fam and older
-        cpu_fams_to_return = cpu_fam_candidates[best_cpu_fam[:brand].to_sym][0..best_cpu_fam[:position]]
-      end
+        # we were able to detect a brand
+        if best_cpu_fam[:position] == -1
+          # set default cpu family per brand
+          # this is used if a specific CPU family cannot be detected
+          case best_cpu_fam[:brand]
+          when 'intel'
+            default_fam = 'Intel Nehalem Family'
+          when 'amd'
+            default_fam = 'AMD Opteron G3'
+          when 'ibm'
+            default_fam = 'IBM POWER 8'
+          end
+        else
+          # if a known cpu family is detected in the cluster, set it as the default
+          default_fam = cpu_fam_candidates[best_cpu_fam[:brand].to_sym][best_cpu_fam[:position]]
+        end
 
-      return cpu_fams_to_return
+        return {
+          # keep all families from best_cpu_fam and older
+          cpu_families: cpu_fam_candidates[best_cpu_fam[:brand].to_sym][0..best_cpu_fam[:position]],
+          default_family: default_fam
+        }
+      end
     end
 
     def check_mount_point
