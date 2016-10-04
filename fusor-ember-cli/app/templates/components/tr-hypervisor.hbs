@@ -13,10 +13,10 @@
     {{#if isFreeform}}
       {{partial 'rhev-hostname-input'}}
     {{else}}
-      {{host.name}}
+      <span class='text-downcase'>{{host.name}}</span>
     {{/if}}
   {{else}}
-    {{host.name}}
+    <span class='text-downcase'>{{host.name}}</span>
   {{/if}}
 </td>
 <td> {{host.mac}} </td>

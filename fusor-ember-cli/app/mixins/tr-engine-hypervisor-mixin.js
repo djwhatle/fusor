@@ -36,7 +36,8 @@ export default Ember.Mixin.create({
   isInvalidHostname: Ember.computed('host.name', function() {
     // HOST_REGEXP taken from Foreman code HOST_REGEXP in file /lib/net/validations.rb
     // But replaced /A with ^ and /z with $
-    var hostname = this.get('host.name');
+    // Converting hostname to lowercase to match what user sees (forced lowercase)
+    var hostname = this.get('host.name').toLowerCase();
     var hostnameRegex = new RegExp(/^(([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])\.)*([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])$/);
     var invalidHostname = Ember.isEmpty(hostname) ||
       hostname.length > 45 ||
@@ -57,7 +58,7 @@ export default Ember.Mixin.create({
         request({
           url: '/api/v21/discovered_hosts/' + host.get('id') + '/rename',
           type: "PUT",
-          data: JSON.stringify({'discovered_host': { 'name': host.get('name') } }),
+          data: JSON.stringify({'discovered_host': { 'name': host.get('name').toLowerCase() } }),
           headers: {
             "Accept": "application/json",
             "Content-Type": "application/json",
