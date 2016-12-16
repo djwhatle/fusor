@@ -31,7 +31,7 @@ module Actions
             deployment = ::Fusor::Deployment.find(input[:deployment_id])
 
             username = 'root'
-            password = deployment.openshift_root_password
+            # password = deployment.openshift_root_password
 
             # wait for all the master nodes to fully boot with sshd available
             deployment.ose_master_hosts.each do |host|
@@ -70,8 +70,8 @@ module Actions
           end
 
           def wait_for_sshd_on_host(host, username, password)
-            max_tries = 60
-            wait_time = 60
+            max_tries = 1
+            wait_time = 1
             count = 0
             while count < max_tries
               if check_ssh(host, username, password)

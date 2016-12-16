@@ -48,7 +48,7 @@ module Actions
             trigger_ansible_run(playbook, vars, config_dir, environment)
 
             master_node_hostname = "#{create_hostname(deployment, 'ose-master', 1)}.#{Domain.find(1)}"
-            master_node_host = Host.find_by_name(master_node_hostname)
+            master_node_host = ::Host.find_by_name(master_node_hostname)
             create_subdomain(deployment, master_node_host)
           end
 
