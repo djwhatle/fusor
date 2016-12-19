@@ -118,7 +118,6 @@ module Actions
               :domain_id => 1,
               :root_pass => deployment.openshift_root_password,
               :build => "0",
-              # :provider => deployment.openshift_install_loc
             }
 
             unique_host_params = {
@@ -203,6 +202,11 @@ module Actions
           def get_ose_vms(deployment)
             hostgroup = find_hostgroup(deployment, 'OpenShift')
             ose_vms_to_create = []
+
+            # Reset OSE host records attached to Deployment
+            deployment.ose_master_hosts = []
+            deployment.ose_worker_hosts = []
+            deployment.ose_ha_hosts = []
 
             # ===================
             # CREATE MASTER NODES
