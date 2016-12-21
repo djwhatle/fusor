@@ -26,12 +26,6 @@ module Actions
               plan_action(::Actions::Fusor::Deployment::Rhev::OseLaunch,
                           deployment)
 
-              # plan_action(::Actions::Fusor::Host::WaitUntilOseProvisioned,
-              #             deployment.id)
-
-              # plan_action(::Actions::Fusor::Deployment::OpenShift::WaitForSshd,
-              #             deployment)
-
               plan_action(::Actions::Fusor::Deployment::OpenShift::CopySshKey,
                           deployment, 'rsa')
 

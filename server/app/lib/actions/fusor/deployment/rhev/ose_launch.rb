@@ -10,14 +10,13 @@
 # have received a copy of GPLv2 along with this software; if not, see
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 require 'securerandom'
-require 'pry'
 
 module Actions
   module Fusor
     module Deployment
       module Rhev
-        #Setup and Launch OSE VM
-        class OseLaunch < Actions::Fusor::FusorBaseAction
+        # Setup and Launch OCP VMs
+        class OcpLaunch < Actions::Fusor::FusorBaseAction
           def humanized_name
             _('Setup and Launch OSE VM')
           end
@@ -28,14 +27,26 @@ module Actions
           end
 
           def run
-            ::Fusor.log.info '====== OSE Launch run method ======'
-            deployment = ::Fusor::Deployment.find(input[:deployment_id])
-            generate_root_password(deployment)
-            vars = generate_vars(deployment)
+            ::Fusor.log.info '====== OpenShift VM Launch run method ======'
+
             playbook = '/usr/share/ansible-ovirt/launch_vms.yml'
             config_dir = "#{Rails.root}/tmp/ansible-ovirt/launch_vms/#{deployment.label}"
-            environment = get_environment(deployment, config_dir)
+            deployment = ::Fusor::Deployment.find(input[:deployment_id])
 
+            generate_root_password(deployment)
+            vars = get_ansible_vars(deployment)
+            environment = get_ansible_environment(deployment, config_dir)
+
+            create_initial_host_inventory(deployment, config_dir)
+            trigger_ansible_run(playbook, vars, config_dir, environment)
+            create_openshift_subdomain(deployment, 1)
+          end
+
+          private
+
+          def create_initial_host_inventory(deployment, config_dir)
+            ::Fusor.log.debug '====== Creating initial host inventory for OpenShift Launch VMs playbook ======'
+            # Create a host inventory containing the RHV engine
             unless Dir.exist?(config_dir)
               FileUtils.mkdir_p(config_dir)
             end
@@ -44,33 +55,31 @@ module Actions
               deployment.rhev_engine_host.name
             ].join("\n")
             File.open(config_dir + '/inventory', 'w') { |file| file.write(inventory) }
-
-            trigger_ansible_run(playbook, vars, config_dir, environment)
-
-            master_node_hostname = "#{create_hostname(deployment, 'ose-master', 1)}.#{Domain.find(1)}"
-            master_node_host = ::Host.find_by_name(master_node_hostname)
-            create_subdomain(deployment, master_node_host)
           end
 
-          private
+          def create_openshift_subdomain(deployment, parent_domain_id)
+            parent_domain = Domain.find(parent_domain_id)
+            master_node_hostname = "#{create_hostname(deployment, 'ocp-master', 1)}.#{parent_domain}"
+            master_node_host = ::Host.find_by_name(master_node_hostname)
 
-          def create_subdomain(deployment, host)
             # Create subdomain DNS record
             subdomain = Net::DNS::ARecord.new({
-              :ip => host.ip,
-              :hostname => "*.#{deployment.openshift_subdomain_name}.#{Domain.find(host.domain_id)}",
+              :ip => master_node_host.ip,
+              :hostname => "*.#{deployment.openshift_subdomain_name}.#{parent_domain}",
               :proxy => Domain.find(host.domain_id).proxy
             })
+            # subdomain.valid? returns true if the subdomain already exists
             if subdomain.valid?
-              ::Fusor.log.debug "====== OSE wildcard subdomain is not valid, it might conflict with a previous entry. Skipping. ======"
+              ::Fusor.log.debug "====== OCP wildcard subdomain is not valid, it might conflict with a previous entry. Skipping. ======"
             else
               subdomain.create
-              ::Fusor.log.debug "====== OSE wildcard subdomain created successfully ======"
+              ::Fusor.log.debug "====== OCP wildcard subdomain created successfully ======"
             end
           end
 
-          def get_environment(deployment, config_dir)
+          def get_ansible_environment(deployment, config_dir)
             {
+              ::Fusor.log.debug '====== Populating environment for OpenShift Launch VMs playbook ======'
               'ANSIBLE_HOST_KEY_CHECKING' => 'False',
               'ANSIBLE_LOG_PATH' => "#{::Fusor.log_file_dir(deployment.label, deployment.id)}/ansible.log",
               'ANSIBLE_RETRY_FILES_ENABLED' => "False",
@@ -78,11 +87,13 @@ module Actions
               'ANSIBLE_ASK_SUDO_PASS' => "False",
               'ANSIBLE_PRIVATE_KEY_FILE' => ::Utils::Fusor::SSHKeyUtils.new(deployment).get_ssh_private_key_path,
               'ANSIBLE_CONFIG' => config_dir,
+              'ANSIBLE_TIMEOUT' => "60",
               'HOME' => config_dir
             }
           end
 
-          def generate_vars(deployment)
+          def get_ansible_vars(deployment)
+            ::Fusor.log.debug '====== Populating variables for OpenShift Launch VMs playbook ======'
             hostgroup = find_hostgroup(deployment, 'OpenShift')
             return {
               :config_dir => '/etc/qci',
@@ -96,7 +107,7 @@ module Actions
               :username => deployment.openshift_username,
               :root_password => deployment.openshift_user_password,
               :ssh_key => deployment.ssh_public_key,
-              :vms => get_ose_vms(deployment),
+              :vms => get_ocp_vms(deployment),
               :cluster_name => deployment.rhev_cluster_name,
               :activation_key => hostgroup.group_parameters.where(:name => 'kt_activation_keys').try(:first).try(:value),
               :data_storage_name => deployment.rhev_storage_name
@@ -104,6 +115,7 @@ module Actions
           end
 
           def create_satellite_host_entry(hostname, mac, hostgroup, deployment)
+            ::Fusor.log.debug "====== Creating Satellite host record for #{hostname} ======"
             common_host_params = {
               :hostgroup_id => hostgroup.id,
               :location_id => Location.find_by_name('Default Location').id,
@@ -131,10 +143,10 @@ module Actions
               host = ::Host.create!(host_params)
             rescue Exception => e
               if e.message.include?(hostname) && e.message.include?('already exists')
-                ::Fusor.log.debug("Using existing Satellite Host Record with hostname #{hostname}. Exception: #{e.message}")
+                ::Fusor.log.debug("Using existing Satellite host record for #{hostname}.")
                 host = ::Host.find_by_name("#{hostname}.#{::Domain.find(common_host_params[:domain_id])}")
               else
-                fail _("OCP host creation with mac #{mac} and hostname #{hostname} failed with errors: #{e.message}")
+                fail _("Satellite host record creation with mac #{mac} and hostname #{hostname} failed with errors:\n#{e.message}")
               end
             end
 
@@ -142,20 +154,20 @@ module Actions
           end
 
           def get_mac_address(hostname)
-            # checks for a pre-existing host record in satellite and re-uses if present
+            # Checks for a pre-existing host record in satellite and re-uses if present
             pre_existing_host = ::Host.find_by_name("#{hostname}.#{::Domain.find(1).name}")
             mac = pre_existing_host ? pre_existing_host.mac : Utils::Fusor::MacAddresses.generate_mac_address
           end
 
           def create_hostname(deployment, vm_tag, index)
-            # vm_tag is an identifier such as ose-master or ose-node
+            # vm_tag is an identifier such as ocp-master or ocp-node
             return "#{deployment.label.tr('_', '-')}-#{vm_tag}#{index}"
           end
 
-          def create_ose_vm_definition(deployment, vm_params, index)
+          def create_ocp_vm_definition(deployment, vm_params, index)
             bootable_image_path = '/usr/share/rhel-guest-image-7/rhel-guest-image-7.3-32.x86_64.qcow2'
 
-            ose_vm = {
+            ocp_vm = {
               :name => vm_params[:hostname],
               :memory => vm_params[:memory].to_s + "GiB",
               :cpus => vm_params[:cpus],
@@ -176,10 +188,11 @@ module Actions
                 :mac => vm_params[:mac]
               }
             }
-            return ose_vm
+            return ocp_vm
           end
 
           def trigger_ansible_run(playbook, vars, config_dir, environment)
+            ::Fusor.log.info '====== Triggering Ansible run for OpenShift Launch VMs playbook ======'
             debug_log = SETTINGS[:fusor][:system][:logging][:ansible_debug]
             extra_args = ""
             if debug_log
@@ -188,7 +201,6 @@ module Actions
             end
 
             cmd = "ansible-playbook #{playbook} -i #{config_dir}/inventory -e '#{vars.to_json}' #{extra_args}"
-
             status, output = ::Utils::Fusor::CommandUtils.run_command(cmd, true, environment)
 
             if status != 0
@@ -199,11 +211,11 @@ module Actions
             end
           end
 
-          def get_ose_vms(deployment)
+          def get_ocp_vms(deployment)
             hostgroup = find_hostgroup(deployment, 'OpenShift')
-            ose_vms_to_create = []
+            ocp_vms_to_create = []
 
-            # Reset OSE host records attached to Deployment
+            # Reset OCP host records attached to Deployment
             deployment.ose_master_hosts = []
             deployment.ose_worker_hosts = []
             deployment.ose_ha_hosts = []
@@ -212,15 +224,15 @@ module Actions
             # CREATE MASTER NODES
             # ===================
             for i in 1..deployment.openshift_number_master_nodes do
-              vm_tag = "ose-master"
+              vm_tag = "ocp-master"
               hostname = create_hostname(deployment, vm_tag, i)
               mac = get_mac_address(hostname) # TODO generate from pool of safe addresses
 
               # Create Satellite host entry
-              ose_host = create_satellite_host_entry(hostname, mac, hostgroup, deployment)
-              deployment.ose_master_hosts << ose_host
+              ocp_host = create_satellite_host_entry(hostname, mac, hostgroup, deployment)
+              deployment.ose_master_hosts << ocp_host
 
-              # Arrange parameters so that Ansible can create OSE VM's
+              # Arrange parameters so that Ansible can create OCP VM's
               vm_params = {
                   :hostname => hostname,
                   :mac => mac,
@@ -231,8 +243,8 @@ module Actions
                   :disk_tag => vm_tag
               }
 
-              ose_vm = create_ose_vm_definition(deployment, vm_params, i)
-              ose_vms_to_create << ose_vm
+              ocp_vm = create_ocp_vm_definition(deployment, vm_params, i)
+              ocp_vms_to_create << ocp_vm
             end
 
 
@@ -240,15 +252,15 @@ module Actions
             # CREATE WORKER AND INFRA NODES
             # =============================
             for i in 1..deployment.openshift_number_infra_nodes + deployment.openshift_number_worker_nodes do
-              vm_tag = "ose-node"
+              vm_tag = "ocp-node"
               hostname = create_hostname(deployment, vm_tag, i)
               mac = get_mac_address(hostname) # TODO generate from pool of safe addresses
 
               # Create Satellite host entry
-              ose_host = create_satellite_host_entry(hostname, mac, hostgroup, deployment)
-              deployment.ose_worker_hosts << ose_host
+              ocp_host = create_satellite_host_entry(hostname, mac, hostgroup, deployment)
+              deployment.ose_worker_hosts << ocp_host
 
-              # Arrange parameters so that Ansible can create OSE VM's
+              # Arrange parameters so that Ansible can create OCP VM's
               vm_params = {
                   :hostname => hostname,
                   :mac => mac,
@@ -259,23 +271,23 @@ module Actions
                   :disk_tag => vm_tag
               }
 
-              ose_vm = create_ose_vm_definition(deployment, vm_params, i)
-              ose_vms_to_create << ose_vm
+              ocp_vm = create_ocp_vm_definition(deployment, vm_params, i)
+              ocp_vms_to_create << ocp_vm
             end
 
             # ===============
             # CREATE HA NODES
             # ===============
             for i in 1..deployment.openshift_number_ha_nodes do
-              vm_tag = "ose-ha"
+              vm_tag = "ocp-ha"
               hostname = create_hostname(deployment, vm_tag, i)
               mac = get_mac_address(hostname) # TODO generate from pool of safe addresses
 
               # Create Satellite host entry
-              ose_host = create_satellite_host_entry(hostname, mac, hostgroup, deployment)
-              deployment.ose_ha_hosts << ose_host
+              ocp_host = create_satellite_host_entry(hostname, mac, hostgroup, deployment)
+              deployment.ose_ha_hosts << ocp_host
 
-              # Arrange parameters so that Ansible can create OSE VM's
+              # Arrange parameters so that Ansible can create OCP VM's
               vm_params = {
                   :hostname => hostname,
                   :mac => mac,
@@ -286,11 +298,11 @@ module Actions
                   :disk_tag => vm_tag
               }
 
-              ose_vm = create_ose_vm_definition(deployment, vm_params, i)
-              ose_vms_to_create << ose_vm
+              ocp_vm = create_ocp_vm_definition(deployment, vm_params, i)
+              ocp_vms_to_create << ocp_vm
             end
 
-            return ose_vms_to_create
+            return ocp_vms_to_create
           end
 
           def find_hostgroup(deployment, name)
@@ -322,7 +334,7 @@ module Actions
           end
 
           def generate_root_password(deployment)
-            ::Fusor.log.info '====== Generating randomized password for root access ======'
+            ::Fusor.log.info '====== Generating password for OpenShift root access ======'
             deployment.openshift_root_password = SecureRandom.hex(10)
             deployment.save!
           end
